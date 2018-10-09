@@ -27,16 +27,19 @@
 #      two-level supercompilation).
 
 import itertools
+from typing import TypeVar, Generic, List, Optional, Callable, Tuple
+
+C = TypeVar('C')
 
 
 # Graph
 
-class Graph(object):
+class Graph(Generic[C]):
     pass
 
 
-class Back(Graph):
-    def __init__(self, c):
+class Back(Graph[C]):
+    def __init__(self, c: C):
         self.c = c
 
     def __eq__(self, other):
@@ -50,8 +53,8 @@ class Back(Graph):
         return self.__str__()
 
 
-class Forth(Graph):
-    def __init__(self, c, gs):
+class Forth(Graph[C]):
+    def __init__(self, c: C, gs: List[Graph[C]]):
         self.c = c
         self.gs = gs
 
@@ -99,18 +102,15 @@ class Forth(Graph):
 
 # LazyGraph
 
-class LazyGraph:
+class LazySubgraph(Generic[C]):
     pass
 
 
-# A singleton?
-# class Empty(LazyGraph):
-#     def __str__(self):
-#         return "Empty()"
+LazyGraph = Optional[LazySubgraph[C]]
 
 
-class Stop(LazyGraph):
-    def __init__(self, c):
+class Stop(LazySubgraph[C]):
+    def __init__(self, c: C):
         self.c = c
 
     def __eq__(self, other):
@@ -124,8 +124,8 @@ class Stop(LazyGraph):
         return self.__str__()
 
 
-class Build(LazyGraph):
-    def __init__(self, c, lss):
+class Build(LazySubgraph[C]):
+    def __init__(self, c: C, lss: List[List[LazyGraph]]):
         self.c = c
         self.lss = lss
 
@@ -173,7 +173,7 @@ class Build(LazyGraph):
 # Cartesian product
 #
 
-def cartesian(lss):
+def cartesian(lss: List[List[Graph[C]]]) -> List[List[Graph[C]]]:
     return [list(ls) for ls in itertools.product(*lss)]
 
 
@@ -181,11 +181,11 @@ def cartesian(lss):
 # the interpreter `unroll` that generates a sequence of `Graph` from
 # the `LazyGraph` by executing commands recorded in the `LazyGraph`.
 
-def unroll_ls(ls):
+def unroll_ls(ls: List[LazyGraph]) -> List[Graph[C]]:
     return cartesian(map(unroll, ls))
 
 
-def unroll(l):
+def unroll(l: LazyGraph) -> List[Graph[C]]:
     if l is None:
         return []
     elif isinstance(l, Stop):
@@ -200,7 +200,7 @@ def unroll(l):
 # Usually, we are not interested in the whole bag `unroll(l)`.
 # The goal is to find "the best" or "most interesting" graphs.
 # Hence, there should be developed some techniques of extracting
-# useful information from a `LazyGraph[C]` without evaluating
+# useful information from a `LazyGraph` without evaluating
 # `unroll(l)` directly.
 
 # This can be formulated in the following form.
@@ -232,8 +232,8 @@ def unroll(l):
 # Some of these states may be "bad" with respect to the problem
 # that is to be solved by means of supercompilation.
 
-def bad_graph(bad):
-    def inspect(g):
+def bad_graph(bad: Callable[[C], bool]) -> Callable[[Graph[C]], bool]:
+    def inspect(g: Graph[C]) -> bool:
         if isinstance(g, Back):
             return bad(g.c)
         elif isinstance(g, Forth):
@@ -246,7 +246,7 @@ def bad_graph(bad):
 
 # This filter removes the graphs containing "bad" configurations.
 
-def fl_bad_conf(bad, gs):
+def fl_bad_conf(bad: Callable[[C], bool], gs: List[Graph[C]]) -> List[Graph[C]]:
     return list(filter(bad_graph(bad), gs))
 
 
@@ -256,7 +256,7 @@ def fl_bad_conf(bad, gs):
 
 # `cl_empty` removes subtrees that represent empty sets of graphs.
 
-def cl_empty(l):
+def cl_empty(l: LazyGraph) -> LazyGraph:
     if l is None:
         return l
     elif isinstance(l, Stop):
@@ -268,11 +268,11 @@ def cl_empty(l):
         raise ValueError
 
 
-def cl_empty2(lss):
+def cl_empty2(lss: List[List[LazyGraph]]) -> List[List[LazyGraph]]:
     return [ls for ls in map(cl_empty1, lss) if not (ls is None)]
 
 
-def cl_empty1(ls):
+def cl_empty1(ls: List[LazyGraph]) -> List[LazyGraph]:
     ls1 = [cl_empty(l) for l in ls]
     return None if None in ls1 else ls1
 
@@ -283,8 +283,8 @@ def cl_empty1(ls):
 # in the sense that a single "bad" configuration spoils the whole
 # graph.
 
-def cl_bad_conf(bad):
-    def inspect(l):
+def cl_bad_conf(bad: Callable[[C], bool]) -> Callable[[LazyGraph], LazyGraph]:
+    def inspect(l: LazyGraph) -> LazyGraph:
         if l is None:
             return None
         elif isinstance(l, Stop):
@@ -302,8 +302,9 @@ def cl_bad_conf(bad):
 # The graph returned by `cl_bad_conf` may be cleaned by `cl_empty`.
 #
 
-def cl_empty_and_bad(bad):
-    def inspect(l):
+def cl_empty_and_bad(bad: Callable[[C], bool]) \
+        -> Callable[[LazyGraph], LazyGraph]:
+    def inspect(l: LazyGraph) -> LazyGraph:
         return cl_empty(cl_bad_conf(bad)(l))
 
     return inspect
@@ -313,7 +314,7 @@ def cl_empty_and_bad(bad):
 # Extracting a graph of minimal size (if any).
 #
 
-def graph_size(g):
+def graph_size(g: Graph[C]) -> int:
     if isinstance(g, Back):
         return 1
     elif isinstance(g, Forth):
@@ -328,12 +329,15 @@ def graph_size(g):
 # We use a trick: ∞ is represented by None in
 # (None , None).
 
-def cl_min_size(l):
+def cl_min_size(l: LazyGraph) -> LazyGraph:
     _, l1 = sel_min_size(l)
     return l1
 
+OI = Optional[int]
+OILG = Tuple[OI, LazyGraph]
+OILLG = Tuple[OI, List[LazyGraph]]
 
-def sel_min_size(l):
+def sel_min_size(l: LazyGraph) -> OILG:
     if l is None:
         return None, None
     elif isinstance(l, Stop):
@@ -348,7 +352,7 @@ def sel_min_size(l):
         raise ValueError
 
 
-def select_min2(kx1, kx2):
+def select_min2(kx1: OILG, kx2: OILG) -> OILG:
     k1, _ = kx1
     k2, _ = kx2
     if k2 is None:
@@ -359,14 +363,14 @@ def select_min2(kx1, kx2):
         return kx1 if k1 <= k2 else kx2
 
 
-def sel_min_size2(lss):
+def sel_min_size2(lss: List[List[LazyGraph]]) -> OILG:
     acc = None, None
     for ls in lss:
         acc = select_min2(sel_min_size_and(ls), acc)
     return acc
 
 
-def sel_min_size_and(ls):
+def sel_min_size_and(ls: List[LazyGraph]) -> OILLG:
     k = 0
     ls1 = []
     for l in ls:
@@ -376,8 +380,15 @@ def sel_min_size_and(ls):
     return k, ls1
 
 
-def add_min_size(x1, x2):
+def add_min_size(x1: OI, x2: OI)-> OI:
     if x1 is None or x2 is None:
         return None
     else:
         return x1 + x2
+
+#
+# `cl_min_size` is sound:
+#
+#  Let cl_min_size(l) == (k , l'). Then
+#     unroll(l') ⊆ unroll(l)
+#     k == graph_size ((unroll(l')[0]))
