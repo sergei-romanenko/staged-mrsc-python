@@ -29,6 +29,8 @@
 import itertools
 from typing import TypeVar, Generic, List, Optional, Callable, Tuple
 
+from numpy.core import long
+
 C = TypeVar('C')
 
 
@@ -102,14 +104,18 @@ class Forth(Graph[C]):
 
 # LazyGraph
 
-class LazySubgraph(Generic[C]):
+class LazyGraph(Generic[C]):
     pass
 
 
-LazyGraph = Optional[LazySubgraph[C]]
+class Empty(LazyGraph[C]):
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Empty, cls).__new__(cls)
+        return cls.instance
 
 
-class Stop(LazySubgraph[C]):
+class Stop(LazyGraph[C]):
     def __init__(self, c: C):
         self.c = c
 
@@ -124,8 +130,8 @@ class Stop(LazySubgraph[C]):
         return self.__str__()
 
 
-class Build(LazySubgraph[C]):
-    def __init__(self, c: C, lss: List[List[LazyGraph]]):
+class Build(LazyGraph[C]):
+    def __init__(self, c: C, lss: List[List[LazyGraph[C]]]):
         self.c = c
         self.lss = lss
 
@@ -181,12 +187,12 @@ def cartesian(lss: List[List[Graph[C]]]) -> List[List[Graph[C]]]:
 # the interpreter `unroll` that generates a sequence of `Graph` from
 # the `LazyGraph` by executing commands recorded in the `LazyGraph`.
 
-def unroll_ls(ls: List[LazyGraph]) -> List[Graph[C]]:
+def unroll_ls(ls: List[LazyGraph[C]]) -> List[Graph[C]]:
     return cartesian(map(unroll, ls))
 
 
-def unroll(l: LazyGraph) -> List[Graph[C]]:
-    if l is None:
+def unroll(l: LazyGraph[C]) -> List[Graph[C]]:
+    if isinstance(l, Empty):
         return []
     elif isinstance(l, Stop):
         return [Back(l.c)]
@@ -256,25 +262,25 @@ def fl_bad_conf(bad: Callable[[C], bool], gs: List[Graph[C]]) -> List[Graph[C]]:
 
 # `cl_empty` removes subtrees that represent empty sets of graphs.
 
-def cl_empty(l: LazyGraph) -> LazyGraph:
-    if l is None:
+def cl_empty(l: LazyGraph[C]) -> LazyGraph[C]:
+    if isinstance(l, Empty):
         return l
     elif isinstance(l, Stop):
         return l
     elif isinstance(l, Build):
         lss1 = cl_empty2(l.lss)
-        return None if len(lss1) == 0 else Build(l.c, lss1)
+        return Empty() if len(lss1) == 0 else Build(l.c, lss1)
     else:
         raise ValueError
 
 
-def cl_empty2(lss: List[List[LazyGraph]]) -> List[List[LazyGraph]]:
+def cl_empty2(lss: List[List[LazyGraph[C]]]) -> List[List[LazyGraph[C]]]:
     return [ls for ls in map(cl_empty1, lss) if not (ls is None)]
 
 
-def cl_empty1(ls: List[LazyGraph]) -> List[LazyGraph]:
+def cl_empty1(ls: List[LazyGraph[C]]) -> Optional[List[LazyGraph[C]]]:
     ls1 = [cl_empty(l) for l in ls]
-    return None if None in ls1 else ls1
+    return None if Empty() in ls1 else ls1
 
 
 # Removing graphs that contain "bad" configurations.
@@ -283,14 +289,15 @@ def cl_empty1(ls: List[LazyGraph]) -> List[LazyGraph]:
 # in the sense that a single "bad" configuration spoils the whole
 # graph.
 
-def cl_bad_conf(bad: Callable[[C], bool]) -> Callable[[LazyGraph], LazyGraph]:
-    def inspect(l: LazyGraph) -> LazyGraph:
-        if l is None:
-            return None
+def cl_bad_conf(bad: Callable[[C], bool]) \
+        -> Callable[[LazyGraph[C]], LazyGraph[C]]:
+    def inspect(l: LazyGraph[C]) -> LazyGraph[C]:
+        if isinstance(l, Empty):
+            return Empty()
         elif isinstance(l, Stop):
-            return None if bad(l.c) else l
+            return Empty() if bad(l.c) else l
         elif isinstance(l, Build):
-            return None if bad(l.c) else \
+            return Empty() if bad(l.c) else \
                 Build(l.c, [[inspect(l1) for l1 in ls] for ls in l.lss])
         else:
             raise ValueError
@@ -303,8 +310,8 @@ def cl_bad_conf(bad: Callable[[C], bool]) -> Callable[[LazyGraph], LazyGraph]:
 #
 
 def cl_empty_and_bad(bad: Callable[[C], bool]) \
-        -> Callable[[LazyGraph], LazyGraph]:
-    def inspect(l: LazyGraph) -> LazyGraph:
+        -> Callable[[LazyGraph[C]], LazyGraph[C]]:
+    def inspect(l: LazyGraph[C]) -> LazyGraph[C]:
         return cl_empty(cl_bad_conf(bad)(l))
 
     return inspect
@@ -314,7 +321,7 @@ def cl_empty_and_bad(bad: Callable[[C], bool]) \
 # Extracting a graph of minimal size (if any).
 #
 
-def graph_size(g: Graph[C]) -> int:
+def graph_size(g: Graph[C]) -> long:
     if isinstance(g, Back):
         return 1
     elif isinstance(g, Forth):
@@ -329,30 +336,32 @@ def graph_size(g: Graph[C]) -> int:
 # We use a trick: ∞ is represented by None in
 # (None , None).
 
-def cl_min_size(l: LazyGraph) -> LazyGraph:
+def cl_min_size(l: LazyGraph[C]) -> LazyGraph[C]:
     _, l1 = sel_min_size(l)
     return l1
 
-OI = Optional[int]
-OILG = Tuple[OI, LazyGraph]
-OILLG = Tuple[OI, List[LazyGraph]]
 
-def sel_min_size(l: LazyGraph) -> OILG:
-    if l is None:
-        return None, None
+OI = Optional[long]
+OILG = Tuple[OI, LazyGraph[C]]
+OILLG = Tuple[OI, List[LazyGraph[C]]]
+
+
+def sel_min_size(l: LazyGraph[C]) -> OILG:
+    if isinstance(l, Empty):
+        return None, Empty()
     elif isinstance(l, Stop):
         return 1, l
     elif isinstance(l, Build):
         k, ls = sel_min_size2(l.lss)
         if k is None:
-            return None, None
+            return None, Empty()
         else:
             return 1 + k, Build(l.c, [ls])
     else:
         raise ValueError
 
 
-def select_min2(kx1: OILG, kx2: OILG) -> OILG:
+def select_min2(kx1: OILLG, kx2: OILLG) -> OILLG:
     k1, _ = kx1
     k2, _ = kx2
     if k2 is None:
@@ -363,14 +372,14 @@ def select_min2(kx1: OILG, kx2: OILG) -> OILG:
         return kx1 if k1 <= k2 else kx2
 
 
-def sel_min_size2(lss: List[List[LazyGraph]]) -> OILG:
-    acc = None, None
+def sel_min_size2(lss: List[List[LazyGraph[C]]]) -> OILLG:
+    acc = None, []
     for ls in lss:
         acc = select_min2(sel_min_size_and(ls), acc)
     return acc
 
 
-def sel_min_size_and(ls: List[LazyGraph]) -> OILLG:
+def sel_min_size_and(ls: List[LazyGraph[C]]) -> OILLG:
     k = 0
     ls1 = []
     for l in ls:
@@ -380,7 +389,7 @@ def sel_min_size_and(ls: List[LazyGraph]) -> OILLG:
     return k, ls1
 
 
-def add_min_size(x1: OI, x2: OI)-> OI:
+def add_min_size(x1: OI, x2: OI) -> OI:
     if x1 is None or x2 is None:
         return None
     else:

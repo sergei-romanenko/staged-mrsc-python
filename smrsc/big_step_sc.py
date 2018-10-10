@@ -55,7 +55,8 @@ import itertools
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, List, Optional
 
-from smrsc.graph import C, cartesian, Graph, Back, Forth, LazyGraph, Stop, Build
+from smrsc.graph import \
+    C, cartesian, Graph, Back, Forth, LazyGraph, Empty, Stop, Build
 
 
 class ScWorld(Generic[C]):
@@ -106,12 +107,12 @@ def naive_mrsc(w: ScWorld[C], c: C) -> List[Graph[C]]:
 # returned by lazy_mrsc.
 
 
-def lazy_mrsc(w: ScWorld[C], c: C) -> LazyGraph:
-    def lazy_mrsc_loop(h: w.History, c: C):
+def lazy_mrsc(w: ScWorld[C], c: C) -> LazyGraph[C]:
+    def lazy_mrsc_loop(h: w.History, c: C) -> LazyGraph[C]:
         if w.isFoldableToHistory(c, h):
             return Stop(c)
         elif w.isDangerous(h):
-            return None
+            return Empty()
         else:
             css = w.develop(c)
             lss = [[lazy_mrsc_loop([c] + h, c1) for c1 in cs]

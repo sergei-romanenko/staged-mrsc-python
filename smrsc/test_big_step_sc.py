@@ -29,3 +29,7 @@ class BigStepScTests(unittest.TestCase):
         self.assertEqual(
             unroll(cl_min_size(lazy_mrsc(0))),
             [Forth(0, [Forth(1, [Forth(2, [Back(1)])])])])
+
+
+if __name__ == '__main__':
+    unittest.main()

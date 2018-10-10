@@ -39,7 +39,7 @@ l_empty = \
     Build(1, [
         [Stop(2)],
         [Build(3, [
-            [Stop(4), None]])]])
+            [Stop(4), Empty()]])]])
 
 l_bad_forth = \
     Build(1, [
@@ -72,7 +72,7 @@ class GraphTests(unittest.TestCase):
             [[1, 10], [1, 20], [2, 10], [2, 20]])
 
     def test_unroll_Empty(self):
-        self.assertEqual(unroll(None), [])
+        self.assertEqual(unroll(Empty()), [])
 
     def test_unroll_Stop(self):
         self.assertEqual(unroll(Stop(100)), [Back(100)])
@@ -95,21 +95,21 @@ class GraphTests(unittest.TestCase):
     def test_lazy_bad_forth(self):
         self.assertEqual(
             cl_bad_conf(ibad)(l_bad_forth),
-            Build(1, [[Stop(1), None]]))
+            Build(1, [[Stop(1), Empty()]]))
 
     def test_lazy_bad_forth_cl(self):
         self.assertEqual(cl_empty_and_bad(ibad)(l_bad_forth),
-                         None)
+                         Empty())
 
     def test_lazy_bad_back(self):
         self.assertEqual(
             cl_bad_conf(ibad)(l_bad_back),
-            Build(1, [[Stop(1), Build(2, [[Stop(3), None]])]]))
+            Build(1, [[Stop(1), Build(2, [[Stop(3), Empty()]])]]))
 
     def test_lazy_bad_back_cl(self):
         self.assertEqual(
             cl_empty_and_bad(ibad)(l_bad_back),
-            None)
+            Empty())
 
     def test_graph_size(self):
         self.assertEqual(graph_size(g1), 5)
