@@ -1,26 +1,21 @@
-from typing import TypeVar, Generic, List
+from typing import List
 from smrsc.big_step_sc import ScWorld
 
 class MockScWorld(ScWorld[int]):
     History = List[int]
     C = int
 
-    @staticmethod
-    def isDangerous(h: History) -> bool:
+    def is_dangerous(self, h: History) -> bool:
         return len(h) > 3
 
-    @staticmethod
-    def isFoldableTo(c1: C, c2: C) -> bool:
+    def is_foldable_to(self, c1: C, c2: C) -> bool:
         return c1 == c2
 
-    @staticmethod
-    def develop(c: C) -> List[List[C]]:
-        return MockScWorld.drive(c) + MockScWorld.rebuild(c)
+    def develop(self, c: C) -> List[List[C]]:
+        return self.drive(c) + self.rebuild(c)
 
-    @staticmethod
-    def drive(c: C) -> List[List[C]]:
+    def drive(self, c: C) -> List[List[C]]:
         return [] if (c < 2) else [[0, c - 1], [c - 1]]
 
-    @staticmethod
-    def rebuild(c: C) -> List[List[C]]:
+    def rebuild(self, c: C) -> List[List[C]]:
         return [[c + 1]]

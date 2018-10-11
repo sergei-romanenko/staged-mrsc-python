@@ -179,17 +179,16 @@ class Build(LazyGraph[C]):
 # Cartesian product
 #
 
-def cartesian(lss: List[List[Graph[C]]]) -> List[List[Graph[C]]]:
-    return [list(ls) for ls in itertools.product(*lss)]
+X = TypeVar('X')
+
+
+def cartesian(xss: List[List[X]]) -> List[List[X]]:
+    return [list(xs) for xs in itertools.product(*xss)]
 
 
 # The semantics of a `LazyGraph` is formally defined by
 # the interpreter `unroll` that generates a sequence of `Graph` from
 # the `LazyGraph` by executing commands recorded in the `LazyGraph`.
-
-def unroll_ls(ls: List[LazyGraph[C]]) -> List[Graph[C]]:
-    return cartesian(map(unroll, ls))
-
 
 def unroll(l: LazyGraph[C]) -> List[Graph[C]]:
     if isinstance(l, Empty):
@@ -197,7 +196,9 @@ def unroll(l: LazyGraph[C]) -> List[Graph[C]]:
     elif isinstance(l, Stop):
         return [Back(l.c)]
     elif isinstance(l, Build):
-        gss = itertools.chain.from_iterable(map(unroll_ls, l.lss))
+        gss = [gs
+               for ls in l.lss
+               for gs in cartesian([unroll(l) for l in ls])]
         return [Forth(l.c, gs) for gs in gss]
     else:
         raise ValueError

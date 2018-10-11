@@ -23,7 +23,7 @@
 #   they may represent sets of states in any form/language and as well may
 #   contain any _additional_ information.
 #
-# * `isFoldableTo` is a "foldability relation". isFoldableTo(c, c') means
+# * `is_foldable_to` is a "foldability relation". is_foldable_to(c, c') means
 #   that c is foldable to c'.
 #   (In such cases c' is usually said to be " more general than c".)
 #
@@ -44,16 +44,16 @@
 # * `History` is a list of configuration that have been produced
 #   in order to reach the current configuration.
 #
-# * `isDangerous` is a "whistle" that is used to ensure termination of
-#   supercompilation. `isDangerous(h)` means that the history has become
+# * `is_dangerous` is a "whistle" that is used to ensure termination of
+#   supercompilation. `is_dangerous(h)` means that the history has become
 #   "too large".
 #
-# * `isFoldableToHistory(c, h)` means that `c` is foldable to a configuration
+# * `is_foldable_to_history(c, h)` means that `c` is foldable to a configuration
 #   in the history `h`.
 
 import itertools
-from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, List, Optional
+from abc import abstractmethod
+from typing import Generic, List
 
 from smrsc.graph import \
     C, cartesian, Graph, Back, Forth, LazyGraph, Empty, Stop, Build
@@ -62,33 +62,30 @@ from smrsc.graph import \
 class ScWorld(Generic[C]):
     History = List[C]
 
-    @staticmethod
     @abstractmethod
-    def isDangerous(h: History) -> bool:
+    def is_dangerous(self, h: History) -> bool:
         pass
 
-    @staticmethod
     @abstractmethod
-    def isFoldableTo(c1: C, c2: C) -> bool:
+    def is_foldable_to(self, c1: C, c2: C) -> bool:
         pass
 
-    @staticmethod
     @abstractmethod
-    def develop(c: C) -> List[List[C]]:
+    def develop(self, c: C) -> List[List[C]]:
         pass
 
-    def isFoldableToHistory(self, c: C, h: History) -> bool:
-        return any(map(lambda c1: self.isFoldableTo(c, c1), h))
+    def is_foldable_to_history(self, c: C, h: History) -> bool:
+        return any(map(lambda c1: self.is_foldable_to(c, c1), h))
 
 
 # Big-step multi-result supercompilation
 # (The naive version builds Cartesian products immediately.)
 
-def naive_mrsc(w: ScWorld[C], c: C) -> List[Graph[C]]:
+def naive_mrsc(w: ScWorld[C], c0: C) -> List[Graph[C]]:
     def naive_mrsc_loop(h: w.History, c: C) -> List[Graph[C]]:
-        if w.isFoldableToHistory(c, h):
+        if w.is_foldable_to_history(c, h):
             return [Back(c)]
-        elif w.isDangerous(h):
+        elif w.is_dangerous(h):
             return []
         else:
             css = w.develop(c)
@@ -96,22 +93,22 @@ def naive_mrsc(w: ScWorld[C], c: C) -> List[Graph[C]]:
                     for cs in css]
             return [Forth(c, gs) for gs in itertools.chain(*gsss)]
 
-    return naive_mrsc_loop([], c)
+    return naive_mrsc_loop([], c0)
 
 
 # "Lazy" multi-result supercompilation.
 # (Cartesian products are not immediately built.)
 #
-# lazy_mrsc is essentially a "staged" version of naive-mrsc
-# with get-graphs being an "interpreter" that evaluates the "program"
+# lazy_mrsc is essentially a "staged" version of naive_mrsc
+# with `unroll` being an "interpreter" that evaluates the "program"
 # returned by lazy_mrsc.
 
 
-def lazy_mrsc(w: ScWorld[C], c: C) -> LazyGraph[C]:
+def lazy_mrsc(w: ScWorld[C], c0: C) -> LazyGraph[C]:
     def lazy_mrsc_loop(h: w.History, c: C) -> LazyGraph[C]:
-        if w.isFoldableToHistory(c, h):
+        if w.is_foldable_to_history(c, h):
             return Stop(c)
-        elif w.isDangerous(h):
+        elif w.is_dangerous(h):
             return Empty()
         else:
             css = w.develop(c)
@@ -119,4 +116,4 @@ def lazy_mrsc(w: ScWorld[C], c: C) -> LazyGraph[C]:
                    for cs in css]
             return Build(c, lss)
 
-    return lazy_mrsc_loop([], c)
+    return lazy_mrsc_loop([], c0)
