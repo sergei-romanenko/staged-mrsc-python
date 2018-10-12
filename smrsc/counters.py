@@ -1,5 +1,5 @@
-from abc import ABC
-from typing import List, Callable, Tuple
+from abc import ABC, abstractmethod
+from typing import List, Tuple
 
 from smrsc.graph import cartesian
 from smrsc.big_step_sc import ScWorld
@@ -104,7 +104,10 @@ class W(NW):
         return W()
 
     def __ge__(self, other) -> bool:
-        return True
+        if isinstance(other, int):
+            return True
+        else:
+            raise ValueError
 
     def is_eq(self, other) -> bool:
         if isinstance(other, int):
@@ -122,19 +125,34 @@ class W(NW):
         return "W()"
 
 
+def nw_conf_pp(c: List[NW]):
+    return "(" + ", ".join(map(str, c)) + ")"
+
+class CountersWorld(ABC):
+    C = List[NW]
+
+    @staticmethod
+    @abstractmethod
+    def start() -> C:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def rules(*nw: NW) -> List[Tuple[bool, C]]:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def is_unsafe(*nw: NW) -> bool:
+        pass
+
+
 class CountersScWorld(ScWorld[List[NW]]):
     C = List[NW]
     History = List[C]
 
-    def __init__(self,
-                 start: C,
-                 rules: Callable[[C], List[Tuple[bool, C]]],
-                 is_unsafe: Callable[[C], bool],
-                 max_nw: int,
-                 max_depth: int):
-        self.start = start
-        self.rules = rules
-        self.is_unsafe = is_unsafe
+    def __init__(self, cnt: CountersWorld, max_nw: int, max_depth: int):
+        self.cnt = cnt
         self.max_nw = max_nw
         self.max_depth = max_depth
 
@@ -157,7 +175,7 @@ class CountersScWorld(ScWorld[List[NW]]):
 
     # Driving is deterministic
     def drive(self, c: C) -> List[C]:
-        return [r for p, r in self.rules(*c) if p]
+        return [r for p, r in self.cnt.rules(*c) if p]
 
     # Rebuilding is not deterministic,
     # but makes a single configuration from a configuration.

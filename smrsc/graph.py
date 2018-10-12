@@ -72,24 +72,21 @@ class Forth(Graph[C]):
         return self.__str__()
 
 
-# GraphPrettyPrinter
+# Graph pretty printer
 
-# object GraphPrettyPrinter {
-#   def toString(g: Graph[_], indent: String = ""): StringBuilder = {
-#     val sb = new StringBuilder()
-#     g match {
-#       case Back(c) =>
-#         sb.append(indent + "|__" + c + "*")
-#       case Forth(c, gs) =>
-#         sb.append(indent + "|__" + c)
-#         for (g <- gs) {
-#           sb.append("\n  " + indent + "|")
-#           sb.append("\n" + toString(g, indent + "  "))
-#         }
-#     }
-#     sb
-#   }
-# }
+def graph_pretty_printer(g: Graph[C], indent="", cstr=str):
+    sb = []
+    if isinstance(g, Back):
+        sb.append(indent + "|__" + cstr(g.c) + "*")
+    elif isinstance(g, Forth):
+        sb.append(indent + "|__" + cstr(g.c))
+        for g in g.gs:
+            sb.append("\n  " + indent + "|")
+            sb.append("\n" + graph_pretty_printer(g, indent + "  ", cstr))
+    else:
+        raise ValueError
+    return "".join(sb)
+
 
 #
 # Lazy graphs of configurations
