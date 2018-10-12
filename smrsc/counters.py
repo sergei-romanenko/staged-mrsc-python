@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from smrsc.graph import cartesian
 from smrsc.big_step_sc import ScWorld
@@ -125,15 +125,30 @@ class W(NW):
         return "W()"
 
 
+w = W()
+
+
 def nw_conf_pp(c: List[NW]):
     return "(" + ", ".join(map(str, c)) + ")"
+
+
+def norm_nw(nwi: Union[NW, int]):
+    if isinstance(nwi, int):
+        return N(nwi)
+    else:
+        return nwi
+
+
+def norm_nw_conf(c: List[Union[NW, int]]):
+    return [norm_nw(nw) for nw in c]
+
 
 class CountersWorld(ABC):
     C = List[NW]
 
     @staticmethod
     @abstractmethod
-    def start() -> C:
+    def start() -> List[Union[NW, int]]:
         pass
 
     @staticmethod
@@ -175,7 +190,7 @@ class CountersScWorld(ScWorld[List[NW]]):
 
     # Driving is deterministic
     def drive(self, c: C) -> List[C]:
-        return [r for p, r in self.cnt.rules(*c) if p]
+        return [norm_nw_conf(r) for p, r in self.cnt.rules(*c) if p]
 
     # Rebuilding is not deterministic,
     # but makes a single configuration from a configuration.

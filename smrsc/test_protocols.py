@@ -1,7 +1,7 @@
 import unittest
 
 from smrsc.big_step_sc import lazy_mrsc
-from smrsc.counters import CountersWorld, CountersScWorld, nw_conf_pp
+from smrsc.counters import CountersWorld, CountersScWorld, nw_conf_pp, norm_nw_conf
 from smrsc.graph import \
     graph_pretty_printer, cl_empty_and_bad, cl_min_size, unroll
 from smrsc.protocols import Synapse
@@ -12,7 +12,8 @@ class TestProtocols(unittest.TestCase):
         name = type(cnt).__name__
         print("\n%s " % name)
         w = CountersScWorld(cnt, m, d)
-        l = lazy_mrsc(w, cnt.start())
+        start_conf = norm_nw_conf(cnt.start())
+        l = lazy_mrsc(w, start_conf)
         sl = cl_empty_and_bad(lambda c: cnt.is_unsafe(*c))(l)
         # len_usl, size_usl = size_unroll(sl)
         # print(len_usl, size_usl)

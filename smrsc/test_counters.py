@@ -3,7 +3,8 @@ from typing import List, Tuple
 
 from smrsc.graph import Graph, Back, Forth, unroll, cl_min_size, LazyGraph
 from smrsc.big_step_sc import naive_mrsc, lazy_mrsc
-from smrsc.counters import NW, N, W, CountersWorld, CountersScWorld
+from smrsc.counters import \
+    NW, N, W, w, CountersWorld, CountersScWorld, norm_nw_conf
 
 
 class TestCountersWorld(CountersWorld):
@@ -11,7 +12,7 @@ class TestCountersWorld(CountersWorld):
 
     @staticmethod
     def start() -> C:
-        return [N(2), N(0)]
+        return [2, 0]
 
     @staticmethod
     def rules(i: NW, j: NW) -> List[Tuple[bool, C]]:
@@ -36,9 +37,10 @@ w = CountersScWorld(TestCountersWorld(), 3, 10)
 class GraphTests(unittest.TestCase):
 
     def test_naive_mrsc__lazy_mrsc(self):
-        gs = naive_mrsc(w, w.cnt.start())
+        start_conf = norm_nw_conf(w.cnt.start())
+        gs = naive_mrsc(w, start_conf)
         # print("gs.length ==%s" % len(gs))
-        l: LazyGraph[List[NW]] = lazy_mrsc(w, w.cnt.start())
+        l: LazyGraph[List[NW]] = lazy_mrsc(w, start_conf)
         self.assertEqual(unroll(l), gs)
         ml = cl_min_size(l)
         self.assertEqual(unroll(ml)[0], mg)
