@@ -111,9 +111,8 @@ def lazy_mrsc(w: ScWorld[C], c0: C) -> LazyGraph[C]:
         elif w.is_dangerous(h):
             return Empty()
         else:
-            css = w.develop(c)
             lss = [[lazy_mrsc_loop([c] + h, c1) for c1 in cs]
-                   for cs in css]
+                   for cs in w.develop(c)]
             return Build(c, lss)
 
     return lazy_mrsc_loop([], c0)

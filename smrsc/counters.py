@@ -168,6 +168,8 @@ class CountersScWorld(ScWorld[List[NW]]):
 
     def __init__(self, cnt: CountersWorld, max_nw: int, max_depth: int):
         self.cnt = cnt
+        self.start = norm_nw_conf(cnt.start())
+        self.is_unsafe = lambda c: cnt.is_unsafe(*c)
         self.max_nw = max_nw
         self.max_depth = max_depth
 

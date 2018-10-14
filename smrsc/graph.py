@@ -37,7 +37,8 @@ C = TypeVar('C')
 # Graph
 
 class Graph(Generic[C]):
-    pass
+    def __repr__(self):
+        return self.__str__()
 
 
 class Back(Graph[C]):
@@ -50,9 +51,6 @@ class Back(Graph[C]):
 
     def __str__(self):
         return "Back(%s)" % self.c.__str__()
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class Forth(Graph[C]):
@@ -67,9 +65,6 @@ class Forth(Graph[C]):
 
     def __str__(self):
         return "Forth(%s, %s)" % (self.c, self.gs)
-
-    def __repr__(self):
-        return self.__str__()
 
 
 # Graph pretty printer
@@ -102,7 +97,8 @@ def graph_pretty_printer(g: Graph[C], indent="", cstr=str):
 # LazyGraph
 
 class LazyGraph(Generic[C]):
-    pass
+    def __repr__(self):
+        return self.__str__()
 
 
 class Empty(LazyGraph[C]):
@@ -123,9 +119,6 @@ class Stop(LazyGraph[C]):
     def __str__(self):
         return "Stop(%s)" % self.c
 
-    def __repr__(self):
-        return self.__str__()
-
 
 class Build(LazyGraph[C]):
     def __init__(self, c: C, lss: List[List[LazyGraph[C]]]):
@@ -140,37 +133,50 @@ class Build(LazyGraph[C]):
     def __str__(self):
         return "Build(%s, %s)" % (self.c, self.lss)
 
+
+# Lazy coraph
+
+class LazyGraph8(Generic[C]):
+    pass
+
+
+class Empty8(LazyGraph8[C]):
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Empty8, cls).__new__(cls)
+        return cls.instance
+
+
+class Stop8(LazyGraph8[C]):
+    def __init__(self, c: C):
+        self.c = c
+
+    def __str__(self):
+        return "Stop8(%s)" % self.c
+
     def __repr__(self):
         return self.__str__()
 
 
-# LazyCoraph
+class Build8(LazyGraph8[C]):
+    def __init__(self, c: C, lss8: Callable[[], List[List[LazyGraph8[C]]]]):
+        self.c = c
+        self._lss8 = lss8
 
-# sealed trait LazyCograph[+C]
-#
-# object LazyCograph {
-#
-#   case object Empty8
-#     extends LazyCograph[Nothing]
-#
-#   case class Stop8[C](c: C)
-#     extends LazyCograph[C]
-#
-#   private
-#   class Build8Imp[C](val c: C, val lss: () => List[List[LazyCograph[C]]])
-#     extends LazyCograph[C]
-#
-#   object Build8 {
-#     def apply[C](c: C, lss: => List[List[LazyCograph[C]]]): LazyCograph[C] = {
-#       lazy val lssVal = lss
-#       new Build8Imp[C](c, () => lssVal)
-#     }
-#
-#     def unapply[C](arg: Build8Imp[C]): Option[(C, List[List[LazyCograph[C]]])] =
-#       Some(arg.c, arg.lss())
-#   }
-#
-# }
+    @property
+    def lss(self) -> List[List[LazyGraph8[C]]]:
+        if hasattr(self, '_lss'):
+            return self._lss
+        else:
+            self._lss = self._lss8()
+            return self._lss
+
+    def __str__(self):
+        return "Build8(%s, %s)" % (self.c, self.lss)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 #
 # Cartesian product
